@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-900">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RAG-LLM Chatbot</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="h-full flex text-white">
+
+  <!-- Sidebar -->
+  <aside class="w-64 bg-gray-800 p-4 flex flex-col border-r border-gray-700">
+    <h2 class="text-xl font-bold mb-6 text-center">QueryPro Chatbot</h2>
+
+    <label class="text-sm mb-2">Mode:</label>
+    <select id="modeSelect" class="bg-gray-700 text-white border-none rounded px-2 py-1 text-sm mb-6">
+      <option value="rag">RAG (LLM + Docs)</option>
+      <option value="llm">LLM Only</option>
+    </select>
+
+    <label class="text-sm mb-2">Upload Document:</label>
+    <input type="file" id="fileInput" class="mb-3 text-sm text-white" />
+    <button onclick="uploadFile()" class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-sm">
+      Upload
+    </button>
+  </aside>
+
+  <!-- Chat Area -->
+  <main class="flex-1 flex flex-col h-full">
+    <!-- Chat Messages -->
+    <div id="chatBox" class="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+      <!-- Chat messages will be appended here -->
+    </div>
+
+    <!-- Chat Input -->
+    <footer class="bg-gray-900 p-4 border-t border-gray-700">
+      <div class="max-w-4xl mx-auto flex items-center gap-2">
+        <input
+          type="text"
+          id="userInput"
+          placeholder="Ask something..."
+          class="flex-1 px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <button onclick="sendMessage()" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-sm">
+          Send
+        </button>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    const chatBox = document.getElementById("chatBox");
+
+    function appendMessage(sender, text, role) {
+      const msg = document.createElement("div");
+      msg.className = role === "user" ? "text-right" : "text-left";
+      msg.innerHTML = `
+        <div class="inline-block max-w-[80%] px-4 py-2 my-2 rounded-lg ${
+          role === "user"
+            ? "bg-blue-600 text-white self-end"
+            : "bg-gray-700 text-white self-start"
+        }">
+          <span class="block text-sm opacity-80 font-medium mb-1">${sender}</span>
+          <span>${text}</span>
+        </div>
+      `;
+      chatBox.appendChild(msg);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    async function uploadFile() {
+      const file = document.getElementById("fileInput").files[0];
+      if (!file) return alert("Choose a file first.");
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const text = await response.text();
+      alert("File upload " + (response.ok ? "successful" : "failed") + ": " + text);
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById("userInput");
+      const query = input.value.trim();
+      const mode = document.getElementById("modeSelect").value;
+
+      if (!query) return;
+
+      appendMessage("You", query, "user");
+      input.value = "";
+
+      const res = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, mode }),
+      });
+
+      const data = await res.json();
+      appendMessage("Bot", data.response, "bot");
+    }
+  </script>
+</body>
+</html>
+
